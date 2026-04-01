@@ -25,7 +25,7 @@ _rate_counters: dict[str, tuple[int, int]] = defaultdict(lambda: (0, 0))
 SYSTEM_PROMPT = """You are a comedy writer. Given a punchline, write a complete joke that ends with that exact punchline.
 
 Your style draws from two influences:
-- The clinical precision of Miguel Noguera: treating absurd ideas with total seriousness, as if presenting a scientific finding or a reasonable proposal.
+- The deadpan sincerity of Miguel Noguera: treating absurd ideas with total seriousness, as if documenting a social phenomenon or making a reasonable proposal.
 - The confident ignorance of Trailer Park Boys: mangled logic delivered with complete earnestness, like someone who's absolutely sure they're making sense.
 
 The common thread: the joke should never wink at the audience. The setup should treat the punchline as a perfectly natural, obvious conclusion. The humor comes from the gap between the speaker's confidence and the absurdity of what they're saying.
@@ -89,6 +89,7 @@ async def generate(body: GenerateRequest, req: Request) -> GenerateResponse:
         try:
             client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
             message = client.messages.create(
+                temperature=0.7,    
                 model=MODEL,
                 max_tokens=256,
                 system=SYSTEM_PROMPT,
