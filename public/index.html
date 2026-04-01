@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>punchline</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cutive+Mono&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #F5F0E8;
+      --text: #0A0A0A;
+      --red: #BE3A2B;
+      --blue: #2B4A8E;
+      --yellow: #E8A838;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: 'Cutive Mono', monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 64px 24px 96px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 680px;
+    }
+
+    header {
+      margin-bottom: 56px;
+    }
+
+    .header-accent {
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      margin-bottom: 20px;
+    }
+
+    .accent-bar {
+      width: 14px;
+      background-color: var(--red);
+      flex-shrink: 0;
+    }
+
+    .accent-bar-blue {
+      width: 8px;
+      background-color: var(--blue);
+      flex-shrink: 0;
+    }
+
+    h1 {
+      font-size: clamp(48px, 10vw, 72px);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1;
+      padding-left: 20px;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      color: var(--text);
+      opacity: 0.55;
+      letter-spacing: 0.04em;
+      margin-top: 4px;
+      padding-left: 22px;
+      border-left: 2px solid var(--yellow);
+    }
+
+    .form-section {
+      margin-bottom: 48px;
+    }
+
+    .input-label {
+      display: block;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      opacity: 0.5;
+      margin-bottom: 10px;
+    }
+
+    textarea {
+      width: 100%;
+      font-family: 'Cutive Mono', monospace;
+      font-size: 16px;
+      color: var(--text);
+      background-color: var(--bg);
+      border: 2px solid var(--text);
+      padding: 16px;
+      resize: vertical;
+      min-height: 80px;
+      outline: none;
+      line-height: 1.5;
+      display: block;
+    }
+
+    textarea::placeholder {
+      opacity: 0.35;
+    }
+
+    textarea:focus {
+      border-color: var(--blue);
+    }
+
+    .button-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    button {
+      font-family: 'Cutive Mono', monospace;
+      font-size: 13px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      background-color: var(--text);
+      color: var(--bg);
+      border: none;
+      padding: 14px 28px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    button:hover:not(:disabled) {
+      background-color: var(--blue);
+    }
+
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .error-msg {
+      font-size: 12px;
+      color: var(--red);
+      letter-spacing: 0.04em;
+      display: none;
+    }
+
+    .error-msg.visible {
+      display: block;
+    }
+
+    .result-section {
+      display: none;
+    }
+
+    .result-section.visible {
+      display: block;
+    }
+
+    .result-header-bar {
+      height: 4px;
+      background-color: var(--yellow);
+      margin-bottom: 32px;
+    }
+
+    .joke-text {
+      font-size: 20px;
+      line-height: 1.7;
+      font-weight: 400;
+      white-space: pre-wrap;
+    }
+
+    .decorative-footer {
+      display: flex;
+      gap: 6px;
+      margin-top: 56px;
+    }
+
+    .dec-block {
+      height: 6px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="header-accent">
+        <div class="accent-bar"></div>
+        <div class="accent-bar-blue"></div>
+        <h1>punchline</h1>
+      </div>
+      <p class="subtitle">type anything. receive a joke.</p>
+    </header>
+
+    <div class="form-section">
+      <label class="input-label" for="punchline-input">your punchline</label>
+      <textarea
+        id="punchline-input"
+        placeholder="the punchline goes here..."
+        rows="3"
+      ></textarea>
+      <div class="button-row">
+        <button id="generate-btn" type="button">Generate</button>
+        <span class="error-msg" id="error-msg"></span>
+      </div>
+    </div>
+
+    <div class="result-section" id="result-section">
+      <div class="result-header-bar"></div>
+      <p class="joke-text" id="joke-text"></p>
+    </div>
+
+    <div class="decorative-footer">
+      <div class="dec-block" style="width:48px; background:var(--red);"></div>
+      <div class="dec-block" style="width:16px; background:var(--blue);"></div>
+      <div class="dec-block" style="width:32px; background:var(--yellow);"></div>
+    </div>
+  </div>
+
+  <script>
+    const input = document.getElementById('punchline-input');
+    const btn = document.getElementById('generate-btn');
+    const errorMsg = document.getElementById('error-msg');
+    const resultSection = document.getElementById('result-section');
+    const jokeText = document.getElementById('joke-text');
+
+    function setError(msg) {
+      errorMsg.textContent = msg;
+      errorMsg.classList.toggle('visible', !!msg);
+    }
+
+    function setLoading(loading) {
+      btn.disabled = loading;
+      btn.textContent = loading ? '...' : 'Generate';
+    }
+
+    async function generate() {
+      const punchline = input.value.trim();
+      if (!punchline) {
+        setError('write something first.');
+        return;
+      }
+
+      setError('');
+      setLoading(true);
+      resultSection.classList.remove('visible');
+
+      try {
+        const res = await fetch('/api/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ punchline }),
+        });
+
+        if (!res.ok) {
+          throw new Error(`server error: ${res.status}`);
+        }
+
+        const data = await res.json();
+        jokeText.textContent = data.joke;
+        resultSection.classList.add('visible');
+      } catch (err) {
+        setError(err.message || 'something went wrong.');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    btn.addEventListener('click', generate);
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        generate();
+      }
+    });
+  </script>
+</body>
+</html>

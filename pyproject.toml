@@ -1,0 +1,11 @@
+[project]
+name = "punchline"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "anthropic>=0.87.0",
+    "fastapi>=0.135.2",
+    "langfuse>=4.0.4",
+    "python-dotenv>=1.2.2",
+    "uvicorn>=0.42.0",
+]
