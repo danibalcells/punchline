@@ -22,20 +22,44 @@ RATE_LIMIT_WINDOW = int(os.environ.get("RATE_LIMIT_WINDOW", "60"))
 
 _rate_counters: dict[str, tuple[int, int]] = defaultdict(lambda: (0, 0))
 
-SYSTEM_PROMPT = """You are a comedy writer. Given a punchline, write a complete joke that ends with that exact punchline.
+STEP1_SYSTEM_PROMPT = """You are a comedy writer. Given a punchline, you will first reason about its structure, then write 3 complete jokes.
 
-Your style draws from two influences:
-- The deadpan sincerity of Miguel Noguera: treating absurd ideas with total seriousness, as if documenting a social phenomenon or making a reasonable proposal.
-- The confident ignorance of Trailer Park Boys: mangled logic delivered with complete earnestness, like someone who's absolutely sure they're making sense.
+Step 1 — Reason (3 sentences max):
+- What is the core surprise in this punchline — the thing the audience doesn't see coming? The setup should approach it from the side, never naming it directly; the punchline is where it lands for the first time.
+- What mundane, relatable situation would naturally lead here? Think Mitch Hedberg: the destination is inevitable in retrospect, but invisible in advance.
+- What's the arc? A good setup earns the punchline — establish context, build detail or stakes, then let the punchline arrive as deflation or reframing (Norm Macdonald style).
 
-The common thread: the joke should never wink at the audience. The setup should treat the punchline as a perfectly natural, obvious conclusion. The humor comes from the gap between the speaker's confidence and the absurdity of what they're saying.
+Step 2 — Write 3 jokes in your style, drawing from these influences:
+- Miguel Noguera: deadpan sincerity, treating absurd premises with total seriousness, as if documenting a social phenomenon or filing a reasonable complaint.
+- Mitch Hedberg: compact logical leaps where the punchline arrives at an unexpected but inevitable destination — one the setup was heading toward all along without ever naming it.
+- Norm Macdonald: deliberate misdirection, building context and apparent stakes, then deflating them with a punchline that reframes everything that came before.
+
+The common thread: the joke never winks at the audience. The humor comes from the gap between the seriousness of the delivery and the absurdity of the conclusion. The setup should build toward the punchline without telegraphing it — the punchline reveals what the setup was actually about.
 
 Avoid: self-aware humor, meta-jokes, corny puns, "Why did the X..." formats, anything that feels like it's trying to be funny.
-Aim for: unearned confidence, mundane-to-bizarre escalation, earnest delivery of nonsense, the feeling that the person telling this joke has no idea it's a joke.
+Aim for: earnest delivery, a setup that earns its punchline through detail and commitment, the feeling that this is a completely reasonable thing to say.
 
-Return the full joke as plain text — setup followed by the punchline on a new line.
-No quotation marks. No labels. No explanation. Just the joke.
-The last line must be the punchline. Correct the formatting (e.g. capitalization, punctuation) of the punchline to match the rest of the joke."""
+Format your response exactly like this:
+REASONING: [your 3-sentence analysis, including the forbidden key word]
+---
+JOKE 1:
+[full joke, setup then punchline on a new line]
+---
+JOKE 2:
+[full joke, setup then punchline on a new line]
+---
+JOKE 3:
+[full joke, setup then punchline on a new line]
+
+The last line of each joke must be the exact punchline. Correct its formatting (capitalization, punctuation) to match the rest of the joke. No quotation marks, no labels within the jokes."""
+
+STEP2_SYSTEM_PROMPT = """You are a comedy judge. You will be given 3 jokes along with reasoning about their structure. Select the single funniest joke — the one that best combines:
+
+1. A setup that earns the punchline through detail and commitment, without telegraphing where it's going.
+2. A punchline that lands somewhere the setup was heading all along, but never named — surprising and inevitable at the same time.
+3. Deadpan delivery: no winking, no self-awareness, total confidence in the absurdity.
+
+Output only the selected joke, exactly as written. No labels, no preamble, no explanation."""
 
 app = FastAPI()
 langfuse = Langfuse()
@@ -79,33 +103,62 @@ async def generate(body: GenerateRequest, req: Request) -> GenerateResponse:
     if not check_rate_limit(ip):
         raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again in a minute.")
 
+    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+
     with langfuse.start_as_current_observation(
         name="generate-joke",
-        as_type="generation",
+        as_type="span",
         input={"punchline": body.punchline},
-        model=MODEL,
-        model_parameters={"max_tokens": 256},
-    ) as obs:
+    ) as root:
         try:
-            client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-            message = client.messages.create(
-                temperature=0.7,    
+            with langfuse.start_as_current_observation(
+                name="reason-and-generate",
+                as_type="generation",
                 model=MODEL,
-                max_tokens=256,
-                system=SYSTEM_PROMPT,
-                messages=[{"role": "user", "content": f"Punchline: {body.punchline}"}],
-            )
-            joke = message.content[0].text.strip()
+                model_parameters={"max_tokens": 600, "temperature": 1.0},
+            ) as obs1:
+                step1 = client.messages.create(
+                    temperature=1.0,
+                    model=MODEL,
+                    max_tokens=600,
+                    system=STEP1_SYSTEM_PROMPT,
+                    messages=[{"role": "user", "content": f"Punchline: {body.punchline}"}],
+                )
+                candidates = step1.content[0].text.strip()
+                obs1.update(
+                    output={"candidates": candidates},
+                    usage_details={
+                        "input": step1.usage.input_tokens,
+                        "output": step1.usage.output_tokens,
+                    },
+                )
+
+            with langfuse.start_as_current_observation(
+                name="select-best",
+                as_type="generation",
+                model=MODEL,
+                model_parameters={"max_tokens": 256, "temperature": 0.0},
+            ) as obs2:
+                step2 = client.messages.create(
+                    temperature=0.0,
+                    model=MODEL,
+                    max_tokens=256,
+                    system=STEP2_SYSTEM_PROMPT,
+                    messages=[{"role": "user", "content": candidates}],
+                )
+                joke = step2.content[0].text.strip()
+                obs2.update(
+                    output={"joke": joke},
+                    usage_details={
+                        "input": step2.usage.input_tokens,
+                        "output": step2.usage.output_tokens,
+                    },
+                )
+
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"LLM call failed: {e}") from e
 
-        obs.update(
-            output={"joke": joke},
-            usage_details={
-                "input": message.usage.input_tokens,
-                "output": message.usage.output_tokens,
-            },
-        )
+        root.update(output={"joke": joke})
 
     return GenerateResponse(joke=joke)
 
