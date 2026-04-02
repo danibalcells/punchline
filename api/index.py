@@ -22,44 +22,76 @@ RATE_LIMIT_WINDOW = int(os.environ.get("RATE_LIMIT_WINDOW", "60"))
 
 _rate_counters: dict[str, tuple[int, int]] = defaultdict(lambda: (0, 0))
 
-STEP1_SYSTEM_PROMPT = """You are a comedy writer. Given a punchline, you will first reason about its structure, then write 3 complete jokes.
+STEP1_SYSTEM_PROMPT = """You are a comedy writer. Given a punchline, write 3 complete jokes.
 
-Step 1 — Reason (3 sentences max):
-- What is the core surprise in this punchline — the thing the audience doesn't see coming? The setup should approach it from the side, never naming it directly; the punchline is where it lands for the first time.
-- What mundane, relatable situation would naturally lead here? Think Mitch Hedberg: the destination is inevitable in retrospect, but invisible in advance.
-- What's the arc? A good setup earns the punchline — establish context, build detail or stakes, then let the punchline arrive as deflation or reframing (Norm Macdonald style).
+Keep the setup SHORT — a sentence or three. Every word must earn its place. No meandering anecdotes, no characters with backstories, no "So there I was..." framing.
 
-Step 2 — Write 3 jokes in your style, drawing from these influences:
-- Miguel Noguera: deadpan sincerity, treating absurd premises with total seriousness, as if documenting a social phenomenon or filing a reasonable complaint.
-- Mitch Hedberg: compact logical leaps where the punchline arrives at an unexpected but inevitable destination — one the setup was heading toward all along without ever naming it.
-- Norm Macdonald: deliberate misdirection, building context and apparent stakes, then deflating them with a punchline that reframes everything that came before.
+The mechanism is simple: the setup builds a frame, and the punchline reframes it. The audience laughs because the punchline makes them see the setup differently. That's the whole trick.
 
-The common thread: the joke never winks at the audience. The humor comes from the gap between the seriousness of the delivery and the absurdity of the conclusion. The setup should build toward the punchline without telegraphing it — the punchline reveals what the setup was actually about.
+Tone: deadpan sincerity. Delivered as a completely reasonable thing to say.
 
-Avoid: self-aware humor, meta-jokes, corny puns, "Why did the X..." formats, anything that feels like it's trying to be funny.
-Aim for: earnest delivery, a setup that earns its punchline through detail and commitment, the feeling that this is a completely reasonable thing to say.
+Here are examples of the kind of joke you're writing:
 
-Format your response exactly like this:
-REASONING: [your 3-sentence analysis, including the forbidden key word]
----
-JOKE 1:
-[full joke, setup then punchline on a new line]
----
-JOKE 2:
-[full joke, setup then punchline on a new line]
----
-JOKE 3:
-[full joke, setup then punchline on a new line]
+Punchline: ...but I used to, too.
+Joke: I used to do drugs. I still do, but I used to, too.
 
-The last line of each joke must be the exact punchline. Correct its formatting (capitalization, punctuation) to match the rest of the joke. No quotation marks, no labels within the jokes."""
+Punchline: Sorry for the convenience.
+Joke: An escalator can never break — it can only become stairs. You should never see an "Escalator Temporarily Out Of Order" sign, just "Escalator Temporarily Stairs." Sorry for the convenience.
 
-STEP2_SYSTEM_PROMPT = """You are a comedy judge. You will be given 3 jokes along with reasoning about their structure. Select the single funniest joke — the one that best combines:
+Punchline: ...you have to wait.
+Joke: I saw this wino eating grapes. It's like, dude, you have to wait.
 
-1. A setup that earns the punchline through detail and commitment, without telegraphing where it's going.
-2. A punchline that lands somewhere the setup was heading all along, but never named — surprising and inevitable at the same time.
-3. Deadpan delivery: no winking, no self-awareness, total confidence in the absurdity.
+Punchline: ...the more I don't care for him.
+Joke: You know, with Hitler, the more I learn about that guy, the more I don't care for him.
 
-Output only the selected joke, exactly as written. No labels, no preamble, no explanation."""
+Punchline: ...I got the documentation right here.
+Joke: I bought a doughnut and they gave me a receipt for the doughnut. I don't need a receipt for a doughnut. I'll just give you the money, and you give me the doughnut. End of transaction. We don't need to bring ink and paper into this. I can't imagine a scenario where I would have to prove that I bought a doughnut. Some skeptical friend? "Don't even act like I didn't get that doughnut! I got the documentation right here."
+
+Punchline: ...because I'm afraid of dogs.
+Joke: They say if you're afraid of homosexuals, it means deep down inside you're actually a homosexual yourself. That worries me, because I'm afraid of dogs.
+
+Each joke should find a DIFFERENT angle — a different frame for the punchline to break. You may adjust the punchline's capitalization and punctuation to flow naturally."""
+
+STEP1_TOOL = {
+    "name": "submit_jokes",
+    "description": "Submit the reframe analysis and 3 generated jokes.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "reframe": {
+                "type": "string",
+                "description": "One sentence: what does this punchline flip or reveal about the setup?",
+            },
+            "jokes": {
+                "type": "array",
+                "items": {"type": "string", "description": "A complete joke ending with the punchline."},
+                "minItems": 3,
+                "maxItems": 3,
+            },
+        },
+        "required": ["reframe", "jokes"],
+    },
+}
+
+STEP2_SYSTEM_PROMPT = """You are a comedy editor. You'll see 3 jokes written for the same punchline. Pick the single funniest one — the one where the setup is tightest, every word earns its place, and the punchline reframes everything that came before it.
+
+Prefer jokes that are SHORT and structurally clean over jokes that are long and narrative. If a joke could lose a sentence without breaking, it's too long."""
+
+STEP2_TOOL = {
+    "name": "select_joke",
+    "description": "Select the funniest joke by index.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "index": {
+                "type": "integer",
+                "description": "Index of the funniest joke (0, 1, or 2).",
+                "enum": [0, 1, 2],
+            },
+        },
+        "required": ["index"],
+    },
+}
 
 app = FastAPI()
 langfuse = Langfuse()
@@ -122,33 +154,41 @@ async def generate(body: GenerateRequest, req: Request) -> GenerateResponse:
                     model=MODEL,
                     max_tokens=600,
                     system=STEP1_SYSTEM_PROMPT,
+                    tools=[STEP1_TOOL],
+                    tool_choice={"type": "tool", "name": "submit_jokes"},
                     messages=[{"role": "user", "content": f"Punchline: {body.punchline}"}],
                 )
-                candidates = step1.content[0].text.strip()
+                tool_block = next(b for b in step1.content if b.type == "tool_use")
+                candidates: list[str] = tool_block.input["jokes"]
                 obs1.update(
-                    output={"candidates": candidates},
+                    output={"reframe": tool_block.input["reframe"], "jokes": candidates},
                     usage_details={
                         "input": step1.usage.input_tokens,
                         "output": step1.usage.output_tokens,
                     },
                 )
 
+            jokes_text = "\n\n".join(f"[{i}] {j}" for i, j in enumerate(candidates))
+
             with langfuse.start_as_current_observation(
                 name="select-best",
                 as_type="generation",
                 model=MODEL,
-                model_parameters={"max_tokens": 256, "temperature": 0.0},
+                model_parameters={"max_tokens": 64, "temperature": 0.0},
             ) as obs2:
                 step2 = client.messages.create(
                     temperature=0.0,
                     model=MODEL,
-                    max_tokens=256,
+                    max_tokens=64,
                     system=STEP2_SYSTEM_PROMPT,
-                    messages=[{"role": "user", "content": candidates}],
+                    tools=[STEP2_TOOL],
+                    tool_choice={"type": "tool", "name": "select_joke"},
+                    messages=[{"role": "user", "content": jokes_text}],
                 )
-                joke = step2.content[0].text.strip()
+                select_block = next(b for b in step2.content if b.type == "tool_use")
+                joke = candidates[select_block.input["index"]]
                 obs2.update(
-                    output={"joke": joke},
+                    output={"joke": joke, "index": select_block.input["index"]},
                     usage_details={
                         "input": step2.usage.input_tokens,
                         "output": step2.usage.output_tokens,
