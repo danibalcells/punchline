@@ -16,11 +16,10 @@
     }
 
     :root {
-      --bg: #F5F0E8;
-      --text: #0A0A0A;
-      --red: #BE3A2B;
-      --blue: #2B4A8E;
-      --yellow: #E8A838;
+      --bg: #fafafa;
+      --text: #111;
+      --border: #ccc;
+      --muted: #888;
     }
 
     body {
@@ -32,34 +31,61 @@
       flex-direction: column;
       align-items: center;
       padding: 64px 24px 96px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .glove-bg {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+
+    .glove {
+      position: absolute;
+      will-change: transform;
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
+    }
+
+    @keyframes drift0 {
+      0%   { transform: translate(0, 0) rotate(0deg); }
+      25%  { transform: translate(60px, -120px) rotate(40deg); }
+      50%  { transform: translate(-30px, -250px) rotate(-20deg); }
+      75%  { transform: translate(80px, -380px) rotate(60deg); }
+      100% { transform: translate(0, -110vh) rotate(90deg); }
+    }
+    @keyframes drift1 {
+      0%   { transform: translate(0, 0) rotate(0deg); }
+      25%  { transform: translate(-50px, -100px) rotate(-30deg); }
+      50%  { transform: translate(40px, -220px) rotate(25deg); }
+      75%  { transform: translate(-70px, -350px) rotate(-50deg); }
+      100% { transform: translate(20px, -110vh) rotate(-80deg); }
+    }
+    @keyframes drift2 {
+      0%   { transform: translate(0, 0) rotate(10deg); }
+      33%  { transform: translate(70px, -180px) rotate(-35deg); }
+      66%  { transform: translate(-40px, -340px) rotate(45deg); }
+      100% { transform: translate(10px, -110vh) rotate(-60deg); }
+    }
+    @keyframes drift3 {
+      0%   { transform: translate(0, 0) rotate(-15deg); }
+      20%  { transform: translate(-80px, -90px) rotate(20deg); }
+      60%  { transform: translate(50px, -280px) rotate(-40deg); }
+      100% { transform: translate(-30px, -110vh) rotate(70deg); }
     }
 
     .container {
       width: 100%;
       max-width: 680px;
+      position: relative;
+      z-index: 1;
     }
 
     header {
       margin-bottom: 56px;
-    }
-
-    .header-accent {
-      display: flex;
-      align-items: stretch;
-      gap: 0;
-      margin-bottom: 20px;
-    }
-
-    .accent-bar {
-      width: 14px;
-      background-color: var(--red);
-      flex-shrink: 0;
-    }
-
-    .accent-bar-blue {
-      width: 8px;
-      background-color: var(--blue);
-      flex-shrink: 0;
     }
 
     h1 {
@@ -67,17 +93,13 @@
       font-weight: 400;
       letter-spacing: -0.02em;
       line-height: 1;
-      padding-left: 20px;
     }
 
     .subtitle {
       font-size: 14px;
-      color: var(--text);
-      opacity: 0.55;
+      color: var(--muted);
       letter-spacing: 0.04em;
-      margin-top: 4px;
-      padding-left: 22px;
-      border-left: 2px solid var(--yellow);
+      margin-top: 8px;
     }
 
     .form-section {
@@ -89,7 +111,7 @@
       font-size: 11px;
       letter-spacing: 0.12em;
       text-transform: uppercase;
-      opacity: 0.5;
+      color: var(--muted);
       margin-bottom: 10px;
     }
 
@@ -99,7 +121,7 @@
       font-size: 16px;
       color: var(--text);
       background-color: var(--bg);
-      border: 2px solid var(--text);
+      border: 1px solid var(--border);
       padding: 16px;
       resize: vertical;
       min-height: 80px;
@@ -113,7 +135,7 @@
     }
 
     textarea:focus {
-      border-color: var(--blue);
+      border-color: var(--text);
     }
 
     .button-row {
@@ -124,30 +146,42 @@
     }
 
     button {
-      font-family: 'Cutive Mono', monospace;
-      font-size: 13px;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      background-color: var(--text);
-      color: var(--bg);
-      border: none;
-      padding: 14px 28px;
+      font-size: 28px;
+      line-height: 1;
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      width: 52px;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       cursor: pointer;
       flex-shrink: 0;
+      transition: transform 0.15s ease, border-color 0.15s ease;
     }
 
     button:hover:not(:disabled) {
-      background-color: var(--blue);
+      transform: scale(1.12);
+      border-color: var(--text);
     }
 
     button:disabled {
-      opacity: 0.45;
       cursor: not-allowed;
+    }
+
+    button.spinning {
+      animation: spin 0.6s linear infinite;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(-360deg); }
     }
 
     .error-msg {
       font-size: 12px;
-      color: var(--red);
+      color: #b44;
       letter-spacing: 0.04em;
       display: none;
     }
@@ -164,9 +198,9 @@
       display: block;
     }
 
-    .result-header-bar {
-      height: 4px;
-      background-color: var(--yellow);
+    .result-divider {
+      height: 1px;
+      background-color: var(--border);
       margin-bottom: 32px;
     }
 
@@ -176,27 +210,15 @@
       font-weight: 400;
       white-space: pre-wrap;
     }
-
-    .decorative-footer {
-      display: flex;
-      gap: 6px;
-      margin-top: 56px;
-    }
-
-    .dec-block {
-      height: 6px;
-    }
   </style>
 </head>
 <body>
+  <div class="glove-bg" id="glove-bg"></div>
+
   <div class="container">
     <header>
-      <div class="header-accent">
-        <div class="accent-bar"></div>
-        <div class="accent-bar-blue"></div>
-        <h1>punchline</h1>
-      </div>
-      <p class="subtitle">type anything. receive a joke.</p>
+      <h1>punchline</h1>
+      <p class="subtitle">write a line, get a punch.</p>
     </header>
 
     <div class="form-section">
@@ -207,20 +229,14 @@
         rows="3"
       ></textarea>
       <div class="button-row">
-        <button id="generate-btn" type="button">Generate</button>
+        <button id="generate-btn" type="button">🥊</button>
         <span class="error-msg" id="error-msg"></span>
       </div>
     </div>
 
     <div class="result-section" id="result-section">
-      <div class="result-header-bar"></div>
+      <div class="result-divider"></div>
       <p class="joke-text" id="joke-text"></p>
-    </div>
-
-    <div class="decorative-footer">
-      <div class="dec-block" style="width:48px; background:var(--red);"></div>
-      <div class="dec-block" style="width:16px; background:var(--blue);"></div>
-      <div class="dec-block" style="width:32px; background:var(--yellow);"></div>
     </div>
   </div>
 
@@ -230,6 +246,34 @@
     const errorMsg = document.getElementById('error-msg');
     const resultSection = document.getElementById('result-section');
     const jokeText = document.getElementById('joke-text');
+    const gloveBg = document.getElementById('glove-bg');
+
+    const DRIFT_NAMES = ['drift0', 'drift1', 'drift2', 'drift3'];
+
+    function spawnGlove() {
+      const el = document.createElement('span');
+      el.className = 'glove';
+      el.textContent = '🥊';
+      const size = 16 + Math.random() * 28;
+      el.style.fontSize = size + 'px';
+      el.style.opacity = 0.06 + Math.random() * 0.09;
+      el.style.left = Math.random() * 100 + 'vw';
+      el.style.top = (100 + Math.random() * 20) + 'vh';
+      const dur = 18 + Math.random() * 24;
+      const drift = DRIFT_NAMES[Math.floor(Math.random() * DRIFT_NAMES.length)];
+      el.style.animationName = drift;
+      el.style.animationDuration = dur + 's';
+      el.style.animationDelay = '0s';
+      gloveBg.appendChild(el);
+      setTimeout(() => {
+        el.remove();
+        spawnGlove();
+      }, dur * 1000);
+    }
+
+    for (let i = 0; i < 18; i++) {
+      setTimeout(() => spawnGlove(), Math.random() * 12000);
+    }
 
     function setError(msg) {
       errorMsg.textContent = msg;
@@ -238,7 +282,7 @@
 
     function setLoading(loading) {
       btn.disabled = loading;
-      btn.textContent = loading ? '...' : 'Generate';
+      btn.classList.toggle('spinning', loading);
     }
 
     async function generate() {
