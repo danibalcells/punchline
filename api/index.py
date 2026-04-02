@@ -50,7 +50,9 @@ Joke: I bought a doughnut and they gave me a receipt for the doughnut. I don't n
 Punchline: ...because I'm afraid of dogs.
 Joke: They say if you're afraid of homosexuals, it means deep down inside you're actually a homosexual yourself. That worries me, because I'm afraid of dogs.
 
-Each joke should find a DIFFERENT angle — a different frame for the punchline to break. You may adjust the punchline's capitalization and punctuation to flow naturally."""
+Each joke should find a DIFFERENT angle — a different frame for the punchline to break. You may adjust the punchline's capitalization and punctuation to flow naturally.
+
+The punchline must be the very last words of the joke. Do not add anything after it — no reactions, no commentary, no follow-up sentences."""
 
 STEP1_TOOL = {
     "name": "submit_jokes",
